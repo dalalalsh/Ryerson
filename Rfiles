@@ -33,7 +33,13 @@ str(train)
 #describtion of the data
 summary(train)
 
-#graphs and plots to view the details 
+#graphs and plots to view the details
+par(mfrow=c(1,1))
+#data
+plot(train$amount,train$hour1,
+     xlab="Transaction amount", ylab="Transaction hour", 
+     main="e-commerce data",
+     col=ifelse(train$target==1, "blue", "red"))
 
 #histogram
 #library(reshape2)
@@ -41,7 +47,6 @@ summary(train)
 #p = melt(train)
 #ggplot(p,aes(x = value)) + facet_wrap(~variable,scales = "free_x") + geom_histogram()
 
-par(mfrow=c(1,1))
 plots_hist = function(a){
   if(is.integer(train[[a]])|is.numeric(train[[a]])){
     k3 = hist((train[[a]]), main = "Histogram", xlab = names(train[a]))

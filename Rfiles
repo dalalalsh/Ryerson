@@ -1,0 +1,89 @@
+#Dalal Alsharif - Capstone project
+
+library(readr)
+trainold = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Test.Inputs", 
+                    col_types = cols(amount = col_number(), 
+                                     hour1 = col_number(), 
+                                     hour2 = col_number(), 
+                                     total = col_number(), zip1 = col_number()))
+target = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Train.Targets", 
+                  col_names = FALSE)
+colnames(target)[c(1,1)] <- c("target")
+
+train = cbind(trainold, target)
+test = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Test.Inputs")
+
+#percentage of the fraud in the dataset:
+a = nrow(train)
+b = nrow(subset(train, target==1))
+c = nrow(subset(train, target==0))
+
+fraud_precent = b / a   #3% dataset is highly imbalanced
+legal_percent = c / a   #97%
+
+#Data analysis:
+
+#view part of the data
+head(train)
+
+#types of classes
+str(train)
+#sapply(train,class)
+
+#describtion of the data
+summary(train)
+
+#graphs and plots to view the details 
+
+#histogram
+#library(reshape2)
+#library(ggplot2)
+#p = melt(train)
+#ggplot(p,aes(x = value)) + facet_wrap(~variable,scales = "free_x") + geom_histogram()
+
+par(mfrow=c(1,1))
+plots_hist = function(a){
+  if(is.integer(train[[a]])|is.numeric(train[[a]])){
+    k3 = hist((train[[a]]), main = "Histogram", xlab = names(train[a]))
+    return(k3)
+  }
+}
+
+for(a in 1:ncol(train)){
+  plots_hist(a)
+}
+
+#barplot
+plots_bar = function(a){
+  if(is.integer(train[[a]])|is.numeric(train[[a]])){
+    c3 = table(train[[a]]);
+    k3 = barplot(c3,main = "Bar Plot", xlab = names(train[a]))
+    return(k3)
+  }
+}
+
+for(a in 1:ncol(train)){
+  plots_bar(a)
+}
+
+#Correlation check
+cor(train[,c(1:2,4:6,8:19)])
+
+#feature reduction:
+train$total = NULL
+train$hour2 = NULL
+train$custAttr2 = NULL
+train$state1 = NULL
+
+#find outlier
+#falg5
+plots_bar(15) #plot before capping
+
+#capping outliers
+qnt = quantile(train$flag5, probs=c(.25, .75), na.rm = T)
+caps = quantile(train$flag5, probs=c(.05, .95), na.rm = T)
+H = 1.5*IQR(train$flag5, na.rm = T)
+train$flag5[train$flag5 < (qnt[1] - H)] <- caps[1]
+train$flag5[train$flag5 > (qnt[2] + H)] <- caps[2]
+
+plots_bar(15) #plot after capping

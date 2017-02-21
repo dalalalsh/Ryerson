@@ -1,16 +1,30 @@
 #Dalal Alsharif - Capstone project
 
+
+##################
+###load dataset###
+##################
+
 library(readr)
-trainold = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Test.Inputs", 
-                    col_types = cols(amount = col_number(), 
-                                     hour1 = col_number(), 
-                                     hour2 = col_number(), 
-                                     total = col_number(), zip1 = col_number()))
+
+#train data
+trainold = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Train.Inputs", 
+                    col_types = cols(amount = col_number(), hour1 = col_number(), 
+                                     hour2 = col_number(), total = col_number(), 
+                                     zip1 = col_number()))
+#convert categorical to factor
+as.factor(trainold$state1);
+as.factor(trainold$custAttr2);
+
+#class data (0 = legit, 1 = fraud)
 target = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Train.Targets", 
                   col_names = FALSE)
-colnames(target)[c(1,1)] <- c("target")
+colnames(target)[c(1,1)] = c("target")  #name the column
 
+#combine train and class
 train = cbind(trainold, target)
+
+#test data
 test = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Test.Inputs")
 
 #percentage of the fraud in the dataset:
@@ -21,32 +35,33 @@ c = nrow(subset(train, target==0))
 fraud_precent = b / a   #3% dataset is highly imbalanced
 legal_percent = c / a   #97%
 
-#Data analysis:
 
-#view part of the data
+###################
+###Data analysis###
+###################
+
+#view dataset
 head(train)
 
-#types of classes
+#class of columns
 str(train)
 #sapply(train,class)
 
-#describtion of the data
+#data describtion
 summary(train)
 
 #graphs and plots to view the details
 par(mfrow=c(1,1))
-#data
+
+#plot dataset
 plot(train$amount,train$hour1,
      xlab="Transaction amount", ylab="Transaction hour", 
-     main="e-commerce data",
+     main="e-commerce data", pch=16,
      col=ifelse(train$target==1, "blue", "red"))
+legend(1, 95, legend=c("legit", "fraud"),
+       col=c("red", "blue"), lty=1:2, cex=0.8)
 
 #histogram
-#library(reshape2)
-#library(ggplot2)
-#p = melt(train)
-#ggplot(p,aes(x = value)) + facet_wrap(~variable,scales = "free_x") + geom_histogram()
-
 plots_hist = function(a){
   if(is.integer(train[[a]])|is.numeric(train[[a]])){
     k3 = hist((train[[a]]), main = "Histogram", xlab = names(train[a]))
@@ -71,14 +86,61 @@ for(a in 1:ncol(train)){
   plots_bar(a)
 }
 
-#Correlation check
+#Correlation
+
 cor(train[,c(1:2,4:6,8:19)])
 
-#feature reduction:
+#remove highly correlated columns
 train$total = NULL
 train$hour2 = NULL
-train$custAttr2 = NULL
-train$state1 = NULL
+
+
+#########################
+###categorical columns###
+#########################
+
+#deal with categorial columns
+#train$custAttr2 = NULL
+#train$state1 = NULL
+
+#find frequency of each state and save it as a dataframe
+statenew = as.data.frame(table(train$state1))
+statenew = statenew[order(statenew$Freq),]   #sort by freq
+
+#re-categorize the state1 into 17 groups based on the freq
+train$state1[which(train$state1 == "AE" | train$state1 == "AP")] = "state_1"
+train$state1[which(train$state1 == "SD" | train$state1 == "VT" | train$state1 == "WY")] = "state_1"
+train$state1[which(train$state1 == "ND")] = "state_2"
+train$state1[which(train$state1 == "MT" | train$state1 == "ME" | train$state1 == "WV" | train$state1 == "RI")] = "state_3"
+train$state1[which(train$state1 == "NE" | train$state1 == "DE" | train$state1 == "ID")] = "state_4"
+train$state1[which(train$state1 == "AK" | train$state1 == "MS" | train$state1 == "AR" | train$state1 == "IA" | train$state1 == "NM")] = "state_5"
+train$state1[which(train$state1 == "DC" | train$state1 == "NH" | train$state1 == "KY" | train$state1 == "KS" | train$state1 == "HI")] = "state_6"
+train$state1[which(train$state1 == "UT")] = "state_7"
+train$state1[which(train$state1 == "OK")] = "state_8"
+train$state1[which(train$state1 == "WI")] = "state_9"
+train$state1[which(train$state1 == "SC")] = "state_10"
+train$state1[which(train$state1 == "AL" | train$state1 == "OR" | train$state1 == "IN" | train$state1 == "MO" | train$state1 == "CT" | train$state1 == "MN" | train$state1 == "NV" | train$state1 == "TN" | train$state1 == "CO" | train$state1 == "MA" | train$state1 == "LA" | train$state1 == "MI")] = "state_11"
+train$state1[which(train$state1 == "WA" | train$state1 == "NC" | train$state1 == "MD" | train$state1 == "OH" | train$state1 == "NJ" | train$state1 == "PA")] = "state_12"
+train$state1[which(train$state1 == "AZ" | train$state1 == "VA")] = "state_13"
+train$state1[which(train$state1 == "IL" | train$state1 == "GA")] = "state_14"
+train$state1[which(train$state1 == "NY" | train$state1 == "TX")] = "state_15"
+train$state1[which(train$state1 == "FL")] = "state_16"
+train$state1[which(train$state1 == "CA")] = "state_17"
+
+#convert state1 to zeros and ones
+statenew2 = model.matrix( ~ state1 - 1 , data=train)  #PROBLEM: the length is 99999 not 100000!
+#Remove the "state1" prefix from the column names
+colnames(statenew2) = gsub("state1","",colnames(statenew2))
+#combine it with train data
+trainnew = cbind(train, statenew2)
+
+#normalize dataset
+trainnew = train[,-c(?)] #exclude catigoral colunms
+trainnew = scale(trainnew)
+
+#check mean = 0 and sd = 1
+#M = apply(trainnew,2,mean) #find mean of the columns
+#S = apply(trainnew,2,sd)   #find sd of the columns
 
 #find outlier
 #falg5
@@ -92,3 +154,38 @@ train$flag5[train$flag5 < (qnt[1] - H)] <- caps[1]
 train$flag5[train$flag5 > (qnt[2] + H)] <- caps[2]
 
 plots_bar(15) #plot after capping
+
+#Cross Validation
+#Randomly shuffle the data
+train = train[sample(nrow(train)),]
+
+#Create 10 equally size folds
+folds = cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
+
+#Perform 10 fold cross validation
+for(i in 1:10){
+  #Segement your data by fold using the which() function 
+  testIndexes = which(folds==i,arr.ind=TRUE)
+  testData = train[testIndexes, ]
+  trainData = train[-testIndexes, ]
+  
+  #Logistic Regression:
+  model = glm(target ~.,family=binomial(link='logit'),data=trainData)
+  summary(model)
+  anova(model, test="Chisq")
+
+  #Testing the model
+  fitted.results = predict(model,testData,type='response')
+  fitted.results = ifelse(fitted.results > 0.5,1,0)
+  misClasificError = mean(fitted.results != testData$target)
+  print(paste('Accuracy',1-misClasificError))
+
+  #Area under the curve
+  p = predict(model, testData, type="response")
+  pr = prediction(p, testData$target)
+  prf = performance(pr, measure = "tpr", x.measure = "fpr")
+  plot(prf)
+
+  auc = performance(pr, measure = "auc")
+  auc = auc@y.values[[1]]
+  print(paste('AUC',auc))}

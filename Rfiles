@@ -56,10 +56,8 @@ par(mfrow=c(1,1))
 #plot dataset
 plot(train$amount,train$hour1,
      xlab="Transaction amount", ylab="Transaction hour", 
-     main="e-commerce data", pch=16,
-     col=ifelse(train$target==1, "blue", "red"))
-legend(1, 95, legend=c("legit", "fraud"),
-       col=c("red", "blue"), lty=1:2, cex=0.8)
+     pch=16, col=ifelse(train$target==1, "blue", "red"))
+#legend(-1, -1, legend=c("legit", "fraud"),col=c("red", "blue"), lty=1:2, cex=0.8)
 
 #histogram
 plots_hist = function(a){
@@ -87,13 +85,20 @@ for(a in 1:ncol(train)){
 }
 
 #Correlation
-
 cor(train[,c(1:2,4:6,8:19)])
 
 #remove highly correlated columns
+
+#tt = train[,c(1:2,4:6,8:19)]
+#tmp = cor(tt)
+#tmp[upper.tri(tmp)] <- 0
+#diag(tmp) <- 0
+#data.new <- tt[,!apply(tmp,2,function(x) any(x > 0.99))]
+#head(data.new)
+
 train$total = NULL
 train$hour2 = NULL
-
+head(train)
 
 #########################
 ###categorical columns###
@@ -128,32 +133,42 @@ train$state1[which(train$state1 == "FL")] = "state_16"
 train$state1[which(train$state1 == "CA")] = "state_17"
 
 #convert state1 to zeros and ones
-statenew2 = model.matrix( ~ state1 - 1 , data=train)  #PROBLEM: the length is 99999 not 100000!
+library(ade4)
+train$state1 = data.frame(train$state1)
+statenew2 = acm.disjonctif(train$state1)
+
 #Remove the "state1" prefix from the column names
-colnames(statenew2) = gsub("state1","",colnames(statenew2))
+colnames(statenew2) = gsub("train.state1.","",colnames(statenew2))
+
 #combine it with train data
 trainnew = cbind(train, statenew2)
+trainnew$state1 = NULL
+trainnew$PR = NULL
 
-#normalize dataset
-trainnew = train[,-c(?)] #exclude catigoral colunms
-trainnew = scale(trainnew)
+train = trainnew
 
-#check mean = 0 and sd = 1
-#M = apply(trainnew,2,mean) #find mean of the columns
-#S = apply(trainnew,2,sd)   #find sd of the columns
+#find outlier: falg5
 
-#find outlier
-#falg5
-plots_bar(15) #plot before capping
+par(mfrow=c(1,2))
+plots_bar(16) #plot before capping
 
 #capping outliers
 qnt = quantile(train$flag5, probs=c(.25, .75), na.rm = T)
 caps = quantile(train$flag5, probs=c(.05, .95), na.rm = T)
 H = 1.5*IQR(train$flag5, na.rm = T)
-train$flag5[train$flag5 < (qnt[1] - H)] <- caps[1]
-train$flag5[train$flag5 > (qnt[2] + H)] <- caps[2]
+train$flag5[train$flag5 < (qnt[1] - H)] = caps[1]
+train$flag5[train$flag5 > (qnt[2] + H)] = caps[2]
 
-plots_bar(15) #plot after capping
+plots_bar(16) #plot after capping
+
+#normalize dataset
+train = train[,-c(6)] #exclude categoral colunms
+train = scale(train)
+
+#check mean = 0 and sd = 1
+#M = apply(trainnew,2,mean) #find mean of the columns
+#S = apply(trainnew,2,sd)   #find sd of the columns
+
 
 #Cross Validation
 #Randomly shuffle the data
@@ -163,29 +178,32 @@ train = train[sample(nrow(train)),]
 folds = cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
 
 #Perform 10 fold cross validation
+train = data.frame(train)
 for(i in 1:10){
   #Segement your data by fold using the which() function 
   testIndexes = which(folds==i,arr.ind=TRUE)
   testData = train[testIndexes, ]
   trainData = train[-testIndexes, ]
-  
-  #Logistic Regression:
-  model = glm(target ~.,family=binomial(link='logit'),data=trainData)
-  summary(model)
-  anova(model, test="Chisq")
+  #Use the test and train data partitions however you desire...
 
-  #Testing the model
-  fitted.results = predict(model,testData,type='response')
-  fitted.results = ifelse(fitted.results > 0.5,1,0)
-  misClasificError = mean(fitted.results != testData$target)
-  print(paste('Accuracy',1-misClasificError))
+#Logistic Regression:
+model = glm(target ~.,family=binomial(link='logit'),data=trainData)
+summary(model)
+#anova(model, test="Chisq")
 
-  #Area under the curve
-  p = predict(model, testData, type="response")
-  pr = prediction(p, testData$target)
-  prf = performance(pr, measure = "tpr", x.measure = "fpr")
-  plot(prf)
+#Testing the model
+fitted.results = predict(model,testData,type='response')
+fitted.results = ifelse(fitted.results > 0.5,1,0)
+misClasificError = mean(fitted.results != testData$target)
+print(paste('Accuracy',1-misClasificError))
 
-  auc = performance(pr, measure = "auc")
-  auc = auc@y.values[[1]]
-  print(paste('AUC',auc))}
+#Area under the curve
+library(ROCR)
+p = predict(model, testData, type="response")
+pr = prediction(p, testData$target)
+prf = performance(pr, measure = "tpr", x.measure = "fpr")
+plot(prf)
+
+auc = performance(pr, measure = "auc")
+auc = auc@y.values[[1]]
+print(paste('AUC',auc))}

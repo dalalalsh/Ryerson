@@ -1,0 +1,78 @@
+#Dalal Alsharif - Capstone project - Recommender systems code
+
+#load dataset after preprocessing 
+library(recommenderlab)
+library(reshape2)
+library(ggplot2)
+
+#Remove ALL column EXEPT custAttr1, custAttr2, target.  
+tr = train[,c(3,5,18)]
+
+#Using acast to convert above data as utility matrix
+g = acast(tr, custAttr1 ~ state1)
+
+#Check the class of g
+class(g)
+
+#Convert it as a matrix
+R = as.matrix(g)
+
+#Convert R into realRatingMatrix data structure
+#realRatingMatrix is a recommenderlab sparse-matrix like data-structure
+r = as(R, "realRatingMatrix")
+r
+
+#view r in other possible ways
+as(r, "list")     # A list
+as(r, "matrix")   # A sparse matrix
+
+#I can turn it into data-frame
+head(as(r, "data.frame"))
+
+#normalize the rating matrix
+r_m = normalize(r)
+r_m
+as(r_m, "list")
+
+#Draw an image plot of raw-ratings & normalized ratings
+#  A column represents one specific state and ratings by users
+#   are shaded.
+#   Note that some items are always rated 'black' by most users
+#    while some items are not rated by many users
+#     On the other hand a few users always give high ratings
+#      as in some cases a series of black dots cut across items
+image(r, main = "Raw Ratings")       
+image(r_m, main = "Normalized Ratings")
+
+#Can also turn the matrix into a 0-1 binary matrix
+r_b = binarize(r, minRating=1)
+as(r_b, "matrix")
+
+#Create a recommender object (model)
+#   Run anyone of the following four code lines.
+#     Do not run all four
+#       They pertain to four different algorithms.
+#        UBCF: User-based collaborative filtering
+#        IBCF: Item-based collaborative filtering
+#      Parameter 'method' decides similarity measure
+#        Cosine or Jaccard
+rec=Recommender(r[1:nrow(r)],method="UBCF", param=list(normalize = "Z-score",method="Cosine",nn=5, minRating=1))
+#rec=Recommender(r[1:nrow(r)],method="UBCF", param=list(normalize = "Z-score",method="Jaccard",nn=5, minRating=1))
+#rec=Recommender(r[1:nrow(r)],method="IBCF", param=list(normalize = "Z-score",method="Jaccard",minRating=1))
+#rec=Recommender(r[1:nrow(r)],method="POPULAR")
+
+#Depending upon your selection, examine what you got
+print(rec)
+names(getModel(rec))
+getModel(rec)$nn
+
+############Create predictions#############################
+# This prediction does not predict movie ratings for test.
+#   But it fills up the user 'X' item matrix so that
+#    for any userid and movieid, I can find predicted rating
+#     dim(r) shows there are 6040 users (rows)
+#      'type' parameter decides whether you want ratings or top-n items
+#         get top-10 recommendations for a user, as:
+#             predict(rec, r[1:nrow(r)], type="topNList", n=10)
+recom = predict(rec, r[1:nrow(r)], type="ratings")
+recom

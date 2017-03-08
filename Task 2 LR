@@ -1,10 +1,7 @@
 #Dalal Alsharif - Capstone project
 
 
-##################
-###load dataset###
-##################
-
+####### load dataset #######
 library(readr)
 
 #train data
@@ -12,22 +9,20 @@ trainold = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2
                     col_types = cols(amount = col_number(), hour1 = col_number(), 
                                      hour2 = col_number(), total = col_number(), 
                                      zip1 = col_number()))
-#convert categorical to factor
-as.factor(trainold$state1);
-as.factor(trainold$custAttr2);
 
 #class data (0 = legit, 1 = fraud)
 target = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Train.Targets", 
                   col_names = FALSE)
+#rename the column a target
 colnames(target)[c(1,1)] = c("target")  #name the column
 
-#combine train and class
+#combine train and target
 train = cbind(trainold, target)
 
 #test data
 test = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Test.Inputs")
 
-#percentage of the fraud in the dataset:
+#percentage of the fraud in the dataset
 a = nrow(train)
 b = nrow(subset(train, target==1))
 c = nrow(subset(train, target==0))
@@ -36,30 +31,26 @@ fraud_precent = b / a   #3% dataset is highly imbalanced
 legal_percent = c / a   #97%
 
 
-###################
-###Data analysis###
-###################
+####### Data analysis #######
 
 #view dataset
 head(train)
 
 #class of columns
 str(train)
-#sapply(train,class)
 
 #data describtion
 summary(train)
 
-#graphs and plots to view the details
+####### graphs and plots #######
 par(mfrow=c(1,1))
 
 #plot dataset
 plot(train$amount,train$hour1,
      xlab="Transaction amount", ylab="Transaction hour", 
      pch=16, col=ifelse(train$target==1, "blue", "red"))
-#legend(-1, -1, legend=c("legit", "fraud"),col=c("red", "blue"), lty=1:2, cex=0.8)
 
-#histogram
+#histogram function
 plots_hist = function(a){
   if(is.integer(train[[a]])|is.numeric(train[[a]])){
     k3 = hist((train[[a]]), main = "Histogram", xlab = names(train[a]))
@@ -67,11 +58,12 @@ plots_hist = function(a){
   }
 }
 
+#plot histogram of each column
 for(a in 1:ncol(train)){
   plots_hist(a)
 }
 
-#barplot
+#barplot function
 plots_bar = function(a){
   if(is.integer(train[[a]])|is.numeric(train[[a]])){
     c3 = table(train[[a]]);
@@ -80,39 +72,34 @@ plots_bar = function(a){
   }
 }
 
+#plot barplot of each column
 for(a in 1:ncol(train)){
   plots_bar(a)
 }
 
-#Correlation
+####### Correlation #######
+library("corrplot")
+
 cor(train[,c(1:2,4:6,8:19)])
+corrplot(cor(train[,c(1:2,4:6,8:19)]), method="ellipse")
 
 #remove highly correlated columns
-
-#tt = train[,c(1:2,4:6,8:19)]
-#tmp = cor(tt)
-#tmp[upper.tri(tmp)] <- 0
-#diag(tmp) <- 0
-#data.new <- tt[,!apply(tmp,2,function(x) any(x > 0.99))]
-#head(data.new)
-
 train$total = NULL
 train$hour2 = NULL
 head(train)
 
-#########################
-###categorical columns###
-#########################
 
-#deal with categorial columns
+####### nomial coulmns #######
 #train$custAttr2 = NULL
 #train$state1 = NULL
 
 #find frequency of each state and save it as a dataframe
 statenew = as.data.frame(table(train$state1))
-statenew = statenew[order(statenew$Freq),]   #sort by freq
 
-#re-categorize the state1 into 17 groups based on the freq
+#sort by freqency
+statenew = statenew[order(statenew$Freq),]  
+
+#re-categorize the state1 column into 17 columns based on the freq
 train$state1[which(train$state1 == "AE" | train$state1 == "AP")] = "state_1"
 train$state1[which(train$state1 == "SD" | train$state1 == "VT" | train$state1 == "WY")] = "state_1"
 train$state1[which(train$state1 == "ND")] = "state_2"
@@ -137,7 +124,7 @@ library(ade4)
 train$state1 = data.frame(train$state1)
 statenew2 = acm.disjonctif(train$state1)
 
-#Remove the "state1" prefix from the column names
+#remove the "state1" prefix from the column names
 colnames(statenew2) = gsub("train.state1.","",colnames(statenew2))
 
 #combine it with train data
@@ -147,8 +134,8 @@ trainnew$PR = NULL
 
 train = trainnew
 
-#find outlier: falg5
-
+####### outlier #######
+#flag5 is an outlier
 par(mfrow=c(1,2))
 plots_bar(16) #plot before capping
 
@@ -161,16 +148,16 @@ train$flag5[train$flag5 > (qnt[2] + H)] = caps[2]
 
 plots_bar(16) #plot after capping
 
-#normalize dataset
-train = train[,-c(6)] #exclude categoral colunms
-train = scale(train)
+####### normalize dataset #######
+#train = train[,-c(6)] #exclude categoral colunms
+#train = scale(train)
 
 #check mean = 0 and sd = 1
 #M = apply(trainnew,2,mean) #find mean of the columns
 #S = apply(trainnew,2,sd)   #find sd of the columns
 
+####### Cross Validation #######
 
-#Cross Validation
 #Randomly shuffle the data
 train = train[sample(nrow(train)),]
 
@@ -179,31 +166,35 @@ folds = cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
 
 #Perform 10 fold cross validation
 train = data.frame(train)
+accuracy = list()
+areauc = list()
+
 for(i in 1:10){
   #Segement your data by fold using the which() function 
   testIndexes = which(folds==i,arr.ind=TRUE)
   testData = train[testIndexes, ]
   trainData = train[-testIndexes, ]
-  #Use the test and train data partitions however you desire...
 
-#Logistic Regression:
-model = glm(target ~.,family=binomial(link='logit'),data=trainData)
-summary(model)
-#anova(model, test="Chisq")
+    #Logistic Regression:
+    model = glm(target ~.,family=binomial(link='logit'),data=trainData)
+    summary(model)
+    #anova(model, test="Chisq")
 
-#Testing the model
-fitted.results = predict(model,testData,type='response')
-fitted.results = ifelse(fitted.results > 0.5,1,0)
-misClasificError = mean(fitted.results != testData$target)
-print(paste('Accuracy',1-misClasificError))
+      #Testing the model
+      fitted.results = predict(model,testData,type='response')
+      fitted.results = ifelse(fitted.results > 0.5,1,0)
+      misClasificError = mean(fitted.results != testData$target)
+      accuracy[i] = 1-misClasificError
+      print(paste('Accuracy',1-misClasificError))
 
-#Area under the curve
-library(ROCR)
-p = predict(model, testData, type="response")
-pr = prediction(p, testData$target)
-prf = performance(pr, measure = "tpr", x.measure = "fpr")
-plot(prf)
+    #Area under the curve
+    library(ROCR)
+    p = predict(model, testData, type="response")
+    pr = prediction(p, testData$target)
+    prf = performance(pr, measure = "tpr", x.measure = "fpr")
+    plot(prf)
 
-auc = performance(pr, measure = "auc")
-auc = auc@y.values[[1]]
-print(paste('AUC',auc))}
+    auc = performance(pr, measure = "auc")
+    auc = auc@y.values[[1]]
+    areauc[i] = auc
+    print(paste('AUC',auc))}

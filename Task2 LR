@@ -1,56 +1,69 @@
-#Dalal Alsharif - Capstone project - Logistic Regression code
-
-
-####### load dataset #######
+# Load dataset
 library(readr)
 
-#train data
+# Load train data
 trainold = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Train.Inputs", 
                     col_types = cols(amount = col_number(), hour1 = col_number(), 
                                      hour2 = col_number(), total = col_number(), 
                                      zip1 = col_number()))
+# Convert nominal columns to factor
+#as.factor(trainold$state1);
+#as.factor(trainold$custAttr2);
 
-#class data (0 = legit, 1 = fraud)
+# Load target data (0 = legit, 1 = fraud)
 target = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Train.Targets", 
                   col_names = FALSE)
-#rename the column a target
+# Re-name the column as "target"
 colnames(target)[c(1,1)] = c("target")  #name the column
 
-#combine train and target
+# Combine train and target data
 train = cbind(trainold, target)
 
-#test data
+# Load test data
 test = read_csv("C:/Users/dalal/Documents/Ryerson/Ryerson/DataminingContest2009.Task2.Test.Inputs")
 
-#percentage of the fraud in the dataset
+
+
+# Remove NAs
+train = na.omit(train)
+# Remove duplicated rows 
+#train = train[!duplicated(train),] #4840 rows deleted (5% of the data)
+# Selecting duplicate rows with different classes 
+#aa = train[duplicated(train[,1:19]),]
+
+# Percentage of the fraud in the dataset:
 a = nrow(train)
 b = nrow(subset(train, target==1))
 c = nrow(subset(train, target==0))
 
 fraud_precent = b / a   #3% dataset is highly imbalanced
-legal_percent = c / a   #97%
+legit_percent = c / a   #97%
+
+print(paste('fraud precentage',fraud_precent*100))
+print(paste('legit precentage',legit_percent*100))
 
 
-####### Data analysis #######
 
-#view dataset
+# View dataset
 head(train)
 
-#class of columns
+# Columns Class
 str(train)
 
-#data describtion
+# Data describtion
 summary(train)
 
-####### graphs and plots #######
+
+
+# Graphs and plots
 par(mfrow=c(1,1))
 
-#plot dataset
+# Plot dataset
 plot(train$amount,train$hour1,
      xlab="Transaction amount", ylab="Transaction hour", 
      pch=16, col=ifelse(train$target==1, "blue", "red"))
 
-#histogram function
+# Histogram function
 plots_hist = function(a){
   if(is.integer(train[[a]])|is.numeric(train[[a]])){
     k3 = hist((train[[a]]), main = "Histogram", xlab = names(train[a]))
@@ -58,12 +71,7 @@ plots_hist = function(a){
   }
 }
 
-#plot histogram of each column
-for(a in 1:ncol(train)){
-  plots_hist(a)
-}
-
-#barplot function
+# Barplot function
 plots_bar = function(a){
   if(is.integer(train[[a]])|is.numeric(train[[a]])){
     c3 = table(train[[a]]);
@@ -72,129 +80,162 @@ plots_bar = function(a){
   }
 }
 
-#plot barplot of each column
+# Plot hist. & bar. for each column
+for(a in 1:ncol(train)){
+  plots_hist(a)
+}
+
 for(a in 1:ncol(train)){
   plots_bar(a)
 }
 
-####### Correlation #######
-library("corrplot")
 
+
+# Correlation
+library("corrplot")
 cor(train[,c(1:2,4:6,8:19)])
 corrplot(cor(train[,c(1:2,4:6,8:19)]), method="ellipse")
 
-#remove highly correlated columns
+# Remove highly correlated columns
+
+#tt = train[,c(1:2,4:6,8:19)]
+#tmp = cor(tt)
+#tmp[!lower.tri(tmp)] <- 0
+#diag(tmp) <- 0
+#data.new <- tt[,!apply(tmp,2,function(x) any(x > 0.99))]
+#head(data.new)
+
 train$total = NULL
 train$hour2 = NULL
 head(train)
 
 
-####### nomial coulmns #######
+
+# Nominal columns (state1, custAttr2)
+
 #train$custAttr2 = NULL
 #train$state1 = NULL
 
-#find frequency of each state and save it as a dataframe
+### State1
+# Convert to factor
+train$state1 = as.factor(train$state1)
+
+# Find frequency of each state
 statenew = as.data.frame(table(train$state1))
+# Sort result by frequency 
+statenew = statenew[order(statenew$Freq),] 
 
-#sort by freqency
-statenew = statenew[order(statenew$Freq),]  
+# Merge levels to form 17 groups based on the freqency
 
-#re-categorize the state1 column into 17 columns based on the freq
-train$state1[which(train$state1 == "AE" | train$state1 == "AP")] = "state_1"
-train$state1[which(train$state1 == "SD" | train$state1 == "VT" | train$state1 == "WY")] = "state_1"
-train$state1[which(train$state1 == "ND")] = "state_2"
-train$state1[which(train$state1 == "MT" | train$state1 == "ME" | train$state1 == "WV" | train$state1 == "RI")] = "state_3"
-train$state1[which(train$state1 == "NE" | train$state1 == "DE" | train$state1 == "ID")] = "state_4"
-train$state1[which(train$state1 == "AK" | train$state1 == "MS" | train$state1 == "AR" | train$state1 == "IA" | train$state1 == "NM")] = "state_5"
-train$state1[which(train$state1 == "DC" | train$state1 == "NH" | train$state1 == "KY" | train$state1 == "KS" | train$state1 == "HI")] = "state_6"
-train$state1[which(train$state1 == "UT")] = "state_7"
-train$state1[which(train$state1 == "OK")] = "state_8"
-train$state1[which(train$state1 == "WI")] = "state_9"
-train$state1[which(train$state1 == "SC")] = "state_10"
-train$state1[which(train$state1 == "AL" | train$state1 == "OR" | train$state1 == "IN" | train$state1 == "MO" | train$state1 == "CT" | train$state1 == "MN" | train$state1 == "NV" | train$state1 == "TN" | train$state1 == "CO" | train$state1 == "MA" | train$state1 == "LA" | train$state1 == "MI")] = "state_11"
-train$state1[which(train$state1 == "WA" | train$state1 == "NC" | train$state1 == "MD" | train$state1 == "OH" | train$state1 == "NJ" | train$state1 == "PA")] = "state_12"
-train$state1[which(train$state1 == "AZ" | train$state1 == "VA")] = "state_13"
-train$state1[which(train$state1 == "IL" | train$state1 == "GA")] = "state_14"
-train$state1[which(train$state1 == "NY" | train$state1 == "TX")] = "state_15"
-train$state1[which(train$state1 == "FL")] = "state_16"
-train$state1[which(train$state1 == "CA")] = "state_17"
+# PR AE	            1   KS KY	                        9
+# AP	              2   AL WI 	                      10
+# ND	              3   SC                          	11
+# VT WY SD MT	      4   MO IN OR CT CO MN NV TN LA MA	12
+# RI DE ME WV ID	  5   MI MD WA NC OH PA NJ          13
+# NE NH MS	        6   AZ VA IL GA 	                14
+# AK IA DC NM AR HI	7   NY TX	                        15
+# UT OK	            8   FL	                          16
+# CA	              17
 
-#convert state1 to zeros and ones
+levels(train$state1) = c("1","7","10","2","7","14","17","12","12","7","5","16","14",
+                         "7","7","5","14","12","9","9","12","12","13","5","13","12",
+                         "12","6","4","13","3","6","6","13","7","12","15","13","8",
+                         "12","13","1","5","11","4","12","15","8","14","4","13","10",
+                         "5","4")
+
+# Convert state1 to zeros and ones
 library(ade4)
 train$state1 = data.frame(train$state1)
 statenew2 = acm.disjonctif(train$state1)
 
-#remove the "state1" prefix from the column names
+# Remove the "state1" prefix from the column names
 colnames(statenew2) = gsub("train.state1.","",colnames(statenew2))
 
-#combine it with train data
+# Combine it with train data
 trainnew = cbind(train, statenew2)
 trainnew$state1 = NULL
-trainnew$PR = NULL
 
 train = trainnew
 
-####### outlier #######
-#flag5 is an outlier
-par(mfrow=c(1,2))
-plots_bar(16) #plot before capping
 
-#capping outliers
+### CustAttr2 ################### NOT YET 
+# Convert to factor
+train$custAttr2 = as.factor(train$custAttr2)
+
+
+
+# Outlier (flag5)
+
+par(mfrow=c(1,2))
+# Plot flag5 before capping
+plots_bar(16)
+
+# Capping outliers
 qnt = quantile(train$flag5, probs=c(.25, .75), na.rm = T)
 caps = quantile(train$flag5, probs=c(.05, .95), na.rm = T)
 H = 1.5*IQR(train$flag5, na.rm = T)
 train$flag5[train$flag5 < (qnt[1] - H)] = caps[1]
 train$flag5[train$flag5 > (qnt[2] + H)] = caps[2]
 
-plots_bar(16) #plot after capping
+# Plot flag5 after capping
+plots_bar(16) 
 
-####### normalize dataset #######
-#train = train[,-c(6)] #exclude categoral colunms
+
+
+# Normalize dataset
+train = train[,-c(6)] #exclude categoral colunms
 #train = scale(train)
 
-#check mean = 0 and sd = 1
-#M = apply(trainnew,2,mean) #find mean of the columns
-#S = apply(trainnew,2,sd)   #find sd of the columns
 
-####### Cross Validation #######
 
-#Randomly shuffle the data
+# Cross validation and Logistic regression
+
+# Randomly shuffle the data
 train = train[sample(nrow(train)),]
 
-#Create 10 equally size folds
+# Create 10 equally size folds
 folds = cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
 
-#Perform 10 fold cross validation
+# Perform 10 fold cross validation
 train = data.frame(train)
+
 accuracy = list()
 areauc = list()
 
 for(i in 1:10){
-  #Segement your data by fold using the which() function 
+  # Segement your data by fold using the which() function 
   testIndexes = which(folds==i,arr.ind=TRUE)
   testData = train[testIndexes, ]
   trainData = train[-testIndexes, ]
+  
+  # Logistic Regression:
+  model = glm(target ~.,family=binomial(link='logit'),data=trainData)
+  summary(model)
+  #anova(model, test="Chisq")
 
-    #Logistic Regression:
-    model = glm(target ~.,family=binomial(link='logit'),data=trainData)
-    summary(model)
-    #anova(model, test="Chisq")
+  # Testing the model
+  fitted.results = predict(model,testData,type='response')
+  fitted.results = ifelse(fitted.results > 0.5,1,0)
+  misClasificError = mean(fitted.results != testData$target)
+  
+  # Accuracy
+  accuracy[i] = 1-misClasificError
+  print(paste('Accuracy',1-misClasificError))
 
-      #Testing the model
-      fitted.results = predict(model,testData,type='response')
-      fitted.results = ifelse(fitted.results > 0.5,1,0)
-      misClasificError = mean(fitted.results != testData$target)
-      accuracy[i] = 1-misClasificError
-      print(paste('Accuracy',1-misClasificError))
-
-    #Area under the curve
-    library(ROCR)
-    p = predict(model, testData, type="response")
-    pr = prediction(p, testData$target)
-    prf = performance(pr, measure = "tpr", x.measure = "fpr")
-    plot(prf)
-
-    auc = performance(pr, measure = "auc")
-    auc = auc@y.values[[1]]
-    areauc[i] = auc
-    print(paste('AUC',auc))}
+  # Area under the curve
+  library(ROCR)
+  # Compute AUC for predicting Class with the model
+  p = predict(model, testData, type="response")
+  pr = prediction(p, testData$target)
+  prf = performance(pr, measure = "tpr", x.measure = "fpr")
+  plot(prf)
+  
+  auc = performance(pr, measure = "auc")
+  auc = auc@y.values[[1]]
+  areauc[i] = auc
+  print(paste('AUC',auc))
+  
+  # F-measure
+  fmeasure = performance(pr,"f")
+  fmeasure = fmeasure@y.values[[1]]
+  print(paste('fmeasure',fmeasure))}

@@ -1,3 +1,7 @@
+# Logistic Regression Code
+
+
+
 # Load dataset
 library(readr)
 
@@ -191,6 +195,7 @@ train = train[,-c(6)] #exclude categoral colunms
 # Cross validation and Logistic regression
 
 # Randomly shuffle the data
+set.seed(1)
 train = train[sample(nrow(train)),]
 
 # Create 10 equally size folds
@@ -201,6 +206,7 @@ train = data.frame(train)
 
 accuracy = list()
 areauc = list()
+f1 = list()
 
 for(i in 1:10){
   # Segement your data by fold using the which() function 
@@ -237,5 +243,11 @@ for(i in 1:10){
   
   # F-measure
   fmeasure = performance(pr,"f")
-  fmeasure = fmeasure@y.values[[1]]
+  fmax = which.max(fmeasure@y.values[[1]])
+  fmeasure = fmeasure@y.values[[1]][as.numeric(fmax)]
+  f1[i] = fmeasure
   print(paste('fmeasure',fmeasure))}
+
+
+#write.table(accuracy,"accuracy.txt", sep = ",")
+#write.table(areauc,"areaundercurve.txt", sep = ",")

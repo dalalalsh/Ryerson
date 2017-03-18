@@ -1,6 +1,4 @@
-# Logistic Regression Code
-
-
+# Logistic Regression 
 
 # Load dataset
 library(readr)
@@ -163,8 +161,8 @@ train = trainnew
 
 
 ### CustAttr2 ################### NOT YET 
-# Convert to factor
-train$custAttr2 = as.factor(train$custAttr2)
+# cince ZIP and CustAttr2 represents similar thing
+train$custAttr2 = NULL
 
 
 
@@ -187,7 +185,6 @@ plots_bar(16)
 
 
 # Normalize dataset
-train = train[,-c(6)] #exclude categoral colunms
 #train = scale(train)
 
 
@@ -197,6 +194,7 @@ train = train[,-c(6)] #exclude categoral colunms
 # Randomly shuffle the data
 set.seed(1)
 train = train[sample(nrow(train)),]
+#write.table(train,"shuffletrain.txt", sep = ",")
 
 # Create 10 equally size folds
 folds = cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
@@ -251,3 +249,8 @@ for(i in 1:10){
 
 #write.table(accuracy,"accuracy.txt", sep = ",")
 #write.table(areauc,"areaundercurve.txt", sep = ",")
+#write.table(f1,"f-measure.txt", sep = ",")
+
+max(as.numeric(accuracy))
+max(as.numeric(areauc))
+max(as.numeric(f1))

@@ -1,5 +1,7 @@
 #Dalal Alsharif - Capstone project - Recommender systems code
 
+# Recommender Systems 
+
 # install following three packages in R
 library(recommenderlab)
 library(reshape2)
@@ -20,6 +22,7 @@ g = acast(tr, custAttr1 ~ field1 + flag2 + flag3 + flag5)
 # Check the class of g
 class(g)
 
+
 # Convert it as a matrix
 R = as.matrix(g)
 
@@ -27,6 +30,26 @@ R = as.matrix(g)
 #   realRatingMatrix is a recommenderlab sparse-matrix like data-structure
 r <- as(R, "realRatingMatrix")
 r
+
+# Exploring similarity data 
+
+# first 6 users
+similarity_users <- similarity(r[1:6, ], 
+                               method = "cosine", 
+                               which = "users")
+as.matrix(similarity_users)
+image(as.matrix(similarity_users), main = "User similarity")
+
+# First 6 concatenated features
+similarity_items <- similarity(r[, 1:6], method =
+                                 "cosine", which = "items")
+as.matrix(similarity_items)
+image(as.matrix(similarity_items), main = "Movies similarity")
+
+# Heatmap of the rating matrix
+#image(r, main = "Heatmap of the rating matrix") # hard to read
+image(r[1:20, 1:40], main = "Heatmap of the first 20 rows and 25 columns")
+
 
 ### Method 1:
 scheme = evaluationScheme(testData, method = "split", train = .8,

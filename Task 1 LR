@@ -1,0 +1,251 @@
+# Logistic Regression for Task1 dataset
+
+# Load dataset
+library(readr)
+
+# Load train data
+trainold = read_csv("C:/Users/dalal/Downloads/DataminingContest2009.Task1.Train.Inputs", 
+                    col_types = cols(zip1 = col_integer()))
+# Convert nominal columns to factor
+#as.factor(trainold$state1);
+#as.factor(trainold$custAttr2);
+
+# Load target data (0 = legit, 1 = fraud)
+target = read_csv("C:/Users/dalal/Downloads/DataminingContest2009.Task1.Train.Targets", 
+                  col_names = FALSE)
+# Re-name the column as "target"
+colnames(target)[c(1,1)] = c("target")  #name the column
+
+# Combine train and target data
+train = cbind(trainold, target)
+
+
+
+# Remove NAs
+train = na.omit(train)
+# Remove duplicated rows 
+#train = train[!duplicated(train),] #4840 rows deleted (5% of the data)
+# Selecting duplicate rows with different classes 
+#aa = train[duplicated(train[,1:19]),]
+
+# Percentage of the fraud in the dataset:
+a = nrow(train)
+b = nrow(subset(train, target==1))
+c = nrow(subset(train, target==0))
+
+fraud_precent = b / a   #3% dataset is highly imbalanced
+legit_percent = c / a   #97%
+
+print(paste('fraud precentage',fraud_precent*100))
+print(paste('legit precentage',legit_percent*100))
+
+
+
+# View dataset
+head(train)
+
+# Columns Class
+str(train)
+
+# Data describtion
+summary(train)
+
+
+
+# Graphs and plots
+par(mfrow=c(1,1))
+
+# Plot dataset
+plot(train$amount,train$hour1,
+     xlab="Transaction amount", ylab="Transaction hour", 
+     pch=16, col=ifelse(train$target==1, "blue", "red"))
+
+# Histogram function
+plots_hist = function(a){
+  if(is.integer(train[[a]])|is.numeric(train[[a]])){
+    k3 = hist((train[[a]]), main = "Histogram", xlab = names(train[a]))
+    return(k3)
+  }
+}
+
+# Barplot function
+plots_bar = function(a){
+  if(is.integer(train[[a]])|is.numeric(train[[a]])){
+    c3 = table(train[[a]]);
+    k3 = barplot(c3,main = "Bar Plot", xlab = names(train[a]))
+    return(k3)
+  }
+}
+
+# Plot hist. & bar. for each column
+for(a in 1:ncol(train)){
+  plots_hist(a)
+}
+
+for(a in 1:ncol(train)){
+  plots_bar(a)
+}
+
+
+
+# Correlation
+library("corrplot")
+cor(train[,c(1:2,4:5,8:19)])
+corrplot(cor(train[,c(1:2,4:5,7:19)]), method="ellipse")
+
+# Remove highly correlated columns
+
+#tt = train[,c(1:2,4:6,8:19)]
+#tmp = cor(tt)
+#tmp[!lower.tri(tmp)] <- 0
+#diag(tmp) <- 0
+#data.new <- tt[,!apply(tmp,2,function(x) any(x > 0.99))]
+#head(data.new)
+
+train$total = NULL
+train$hour2 = NULL
+head(train)
+
+
+
+# Nominal columns (state1, custAttr2)
+
+#train$custAttr2 = NULL
+#train$state1 = NULL
+
+### State1
+# Convert to factor
+train$state1 = as.factor(train$state1)
+
+# Find frequency of each state
+statenew = as.data.frame(table(train$state1))
+# Sort result by frequency 
+statenew = statenew[order(statenew$Freq),] 
+
+# Merge levels to form 17 groups based on the freqency
+
+# AP AE		           	1   UT                         						9
+# WY		            	2   OK WI 					                      10
+# ND			            3   AL                          	        11
+# SD		            	4   OR IN CT SC LA MO MN TN NV MA CO MI		12
+# VT MT		          	5   WA OH NC PA NJ MD		              		13
+# ME RI WV DE	      	6   AZ IL VA 				                    	14
+# NM NE NH ID HI IA	  7   GA						                        15
+# MS AK			          8   NY						                        16
+# DC KS AR KY		      17  TX						                        18
+# FL			            19  CA						                        20
+levels(train$state1) = c("1","8","11","1","17","14","20","12","12","17","6","19","15",
+                         "7","7","7","14","12","17","17","12","12","13","6","12","12",
+                         "12","8","5","13","3","7","7","13","7","12","16","13","10",
+                         "12","13","6","12","4","12","18","9","14","5","13","10",
+                         "6","2")
+
+# Convert state1 to zeros and ones
+library(ade4)
+train$state1 = data.frame(train$state1)
+statenew2 = acm.disjonctif(train$state1)
+
+# Remove the "state1" prefix from the column names
+colnames(statenew2) = gsub("train.state1.","",colnames(statenew2))
+
+# Combine it with train data
+trainnew = cbind(train, statenew2)
+trainnew$state1 = NULL
+
+train = trainnew
+
+
+### CustAttr2 ################### NOT YET 
+# cince ZIP and CustAttr2 represents similar thing
+train$domain1 = NULL
+
+
+
+# Outlier (flag5)
+
+par(mfrow=c(1,2))
+# Plot flag5 before capping
+plots_bar(16)
+
+# Capping outliers
+qnt = quantile(train$flag5, probs=c(.25, .75), na.rm = T)
+caps = quantile(train$flag5, probs=c(.05, .95), na.rm = T)
+H = 1.5*IQR(train$flag5, na.rm = T)
+train$flag5[train$flag5 < (qnt[1] - H)] = caps[1]
+train$flag5[train$flag5 > (qnt[2] + H)] = caps[2]
+
+# Plot flag5 after capping
+plots_bar(16) 
+
+
+
+# Normalize dataset
+#train = scale(train)
+
+
+
+# Cross validation and Logistic regression
+
+# Randomly shuffle the data
+set.seed(1)
+train = train[sample(nrow(train)),]
+#write.table(train,"shuffletrain.txt", sep = ",")
+
+# Create 10 equally size folds
+folds = cut(seq(1,nrow(train)),breaks=10,labels=FALSE)
+
+# Perform 10 fold cross validation
+train = data.frame(train)
+
+accuracy = list()
+areauc = list()
+f1 = list()
+
+for(i in 1:10){
+  # Segement your data by fold using the which() function 
+  testIndexes = which(folds==i,arr.ind=TRUE)
+  testData = train[testIndexes, ]
+  trainData = train[-testIndexes, ]
+  
+  # Logistic Regression:
+  model = glm(target ~.,family=binomial(link='logit'),data=trainData)
+  summary(model)
+  #anova(model, test="Chisq")
+  
+  # Testing the model
+  fitted.results = predict(model,testData,type='response')
+  fitted.results = ifelse(fitted.results > 0.5,1,0)
+  misClasificError = mean(fitted.results != testData$target)
+  
+  # Accuracy
+  accuracy[i] = 1-misClasificError
+  print(paste('Accuracy',1-misClasificError))
+  
+  # Area under the curve
+  library(ROCR)
+  # Compute AUC for predicting Class with the model
+  p = predict(model, testData, type="response")
+  pr = prediction(p, testData$target)
+  prf = performance(pr, measure = "tpr", x.measure = "fpr")
+  plot(prf)
+  
+  auc = performance(pr, measure = "auc")
+  auc = auc@y.values[[1]]
+  areauc[i] = auc
+  print(paste('AUC',auc))
+  
+  # F-measure
+  fmeasure = performance(pr,"f")
+  fmax = which.max(fmeasure@y.values[[1]])
+  fmeasure = fmeasure@y.values[[1]][as.numeric(fmax)]
+  f1[i] = fmeasure
+  print(paste('fmeasure',fmeasure))}
+
+
+#write.table(accuracy,"accuracy.txt", sep = ",")
+#write.table(areauc,"areaundercurve.txt", sep = ",")
+#write.table(f1,"f-measure.txt", sep = ",")
+
+max(as.numeric(accuracy))
+max(as.numeric(areauc))
+max(as.numeric(f1))

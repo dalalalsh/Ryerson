@@ -1,4 +1,4 @@
-# Logistic Regression 
+# Logistic Regression for Task2 dataset
 
 # Load dataset
 library(readr)
